@@ -26,10 +26,12 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 const categoryRoutes = require('./routes/categoryRoutes');
+const productRoutes = require('./routes/productRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
 // Mount Routes
 app.use('/api/categories', categoryRoutes);
+app.use('/api/products', productRoutes);
 
 // Error Handling Middlewares
 app.use(notFound);
