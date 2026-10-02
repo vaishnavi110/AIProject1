@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
+import authService from '../services/authService';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
@@ -11,28 +11,49 @@ export const AuthProvider = ({ children }) => {
 
   // Initialize auth state from localStorage on mount
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
+    const initializeAuth = async () => {
+      try {
+        const storedToken = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
 
-      if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        if (storedToken && storedUser) {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+
+          // Optionally revalidate session in background
+          try {
+            const profileData = await authService.getProfile();
+            if (profileData?.user) {
+              setUser(profileData.user);
+              localStorage.setItem('user', JSON.stringify(profileData.user));
+            }
+          } catch (e) {
+            // If token expired, clear invalid session
+            if (e.response?.status === 401) {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              setToken(null);
+              setUser(null);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to restore auth session from localStorage:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to restore auth session from localStorage:', error);
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    } finally {
-      setIsLoading(false);
-    }
+    };
+
+    initializeAuth();
   }, []);
 
   // Login handler
   const login = useCallback(async (email, password) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const { user: userData, token: authToken } = response.data.data || response.data;
+      const data = await authService.loginUser({ email, password });
+      const { user: userData, token: authToken } = data;
 
       setUser(userData);
       setToken(authToken);
@@ -41,10 +62,13 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
 
       toast.success(`Welcome back, ${userData.name}!`);
-      return { success: true, user: userData };
+      return { success: true, user: userData, token: authToken };
     } catch (error) {
       const message =
-        error.response?.data?.message || error.response?.data?.error || error.message || 'Login failed';
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Login failed';
       toast.error(message);
       return { success: false, error: message };
     }
@@ -53,13 +77,13 @@ export const AuthProvider = ({ children }) => {
   // Register handler
   const register = useCallback(async (name, email, password, confirmPassword) => {
     try {
-      const response = await api.post('/auth/register', {
+      const data = await authService.registerUser({
         name,
         email,
         password,
         confirmPassword,
       });
-      const { user: userData, token: authToken } = response.data.data || response.data;
+      const { user: userData, token: authToken } = data;
 
       setUser(userData);
       setToken(authToken);
@@ -68,10 +92,13 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user', JSON.stringify(userData));
 
       toast.success(`Account created successfully! Welcome, ${userData.name}!`);
-      return { success: true, user: userData };
+      return { success: true, user: userData, token: authToken };
     } catch (error) {
       const message =
-        error.response?.data?.message || error.response?.data?.error || error.message || 'Registration failed';
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        'Registration failed';
       toast.error(message);
       return { success: false, error: message };
     }
