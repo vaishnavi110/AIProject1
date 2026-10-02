@@ -24,6 +24,17 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Routes
+const categoryRoutes = require('./routes/categoryRoutes');
+const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+
+// Mount Routes
+app.use('/api/categories', categoryRoutes);
+
+// Error Handling Middlewares
+app.use(notFound);
+app.use(errorHandler);
+
 const PORT = process.env.PORT || 5000;
 
 // Start HTTP server
@@ -35,3 +46,4 @@ const server = app.listen(PORT, () => {
 connectDB();
 
 module.exports = { app, server };
+
