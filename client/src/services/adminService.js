@@ -1,8 +1,10 @@
 import api from './api';
 import categoryService from './categoryService';
-import productService from './productService';
+import productService, { MOCK_PRODUCTS } from './productService';
 
 const LOCAL_ADMIN_CATEGORIES_KEY = 'shopease_admin_custom_categories';
+const LOCAL_ADMIN_PRODUCTS_KEY = 'shopease_admin_custom_products';
+const LOCAL_ORDERS_KEY = 'shopease_customer_orders';
 
 export const adminService = {
   /**
@@ -20,9 +22,7 @@ export const adminService = {
         const ordersRes = await api.get('/admin/orders');
         orders = ordersRes.data?.data || ordersRes.data || [];
       } catch (e) {
-        // Fallback to customer orders from localStorage
-        const localOrders = JSON.parse(localStorage.getItem('shopease_customer_orders') || '[]');
-        orders = localOrders;
+        orders = this.getAllOrdersLocal();
       }
 
       const categories =
@@ -33,7 +33,7 @@ export const adminService = {
       const products =
         productsRes.status === 'fulfilled'
           ? productsRes.value.data?.data || productsRes.value.data || []
-          : await productService.getProducts();
+          : await this.getProducts();
 
       const totalRevenue = orders.reduce((sum, ord) => sum + (ord.totalAmount || 0), 0);
 
@@ -45,45 +45,19 @@ export const adminService = {
         recentOrders: orders.slice(0, 5),
       };
     } catch (error) {
-      console.warn('Backend admin stats not reachable, returning calculated fallback:', error.message);
+      console.warn('Backend admin stats fallback:', error.message);
+      const orders = this.getAllOrdersLocal();
       return {
         totalProducts: 8,
         totalCategories: 4,
-        totalOrders: 3,
-        totalRevenue: 14250,
-        recentOrders: [
-          {
-            _id: 'ord-demo-1',
-            shippingAddress: { name: 'Vaishnavi More', city: 'Mumbai' },
-            totalAmount: 4999,
-            status: 'Delivered',
-            createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-            products: [{ quantity: 1, name: 'Wireless Headphones' }],
-          },
-          {
-            _id: 'ord-demo-2',
-            shippingAddress: { name: 'John Doe', city: 'Pune' },
-            totalAmount: 6499,
-            status: 'Shipped',
-            createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-            products: [{ quantity: 1, name: 'Mechanical Gaming Keyboard' }],
-          },
-          {
-            _id: 'ord-demo-3',
-            shippingAddress: { name: 'Sayali Deore', city: 'Nashik' },
-            totalAmount: 2752,
-            status: 'Pending',
-            createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
-            products: [{ quantity: 2, name: 'Classic Denim Jacket' }],
-          },
-        ],
+        totalOrders: orders.length || 3,
+        totalRevenue: orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 14250,
+        recentOrders: orders.slice(0, 5),
       };
     }
   },
 
-  /**
-   * Fetches all categories for the category management table.
-   */
+  // ================= CATEGORIES =================
   async getCategories() {
     try {
       const response = await api.get('/categories');
@@ -99,16 +73,12 @@ export const adminService = {
     return await categoryService.getCategories();
   },
 
-  /**
-   * Creates a new product category.
-   * @param {Object} data - { name, description }
-   */
   async createCategory(data) {
     try {
       const response = await api.post('/categories', data);
       return response.data?.data || response.data;
     } catch (error) {
-      console.warn('API createCategory failed, persisting locally:', error.message);
+      console.warn('API createCategory fallback:', error.message);
       const newCat = {
         _id: 'cat-' + Math.random().toString(36).substring(2, 9),
         name: data.name,
@@ -122,17 +92,12 @@ export const adminService = {
     }
   },
 
-  /**
-   * Updates an existing category.
-   * @param {string} id
-   * @param {Object} data - { name, description }
-   */
   async updateCategory(id, data) {
     try {
       const response = await api.put(`/categories/${id}`, data);
       return response.data?.data || response.data;
     } catch (error) {
-      console.warn('API updateCategory failed, updating locally:', error.message);
+      console.warn('API updateCategory fallback:', error.message);
       const existing = await this.getCategories();
       const updated = existing.map((c) => (c._id === id ? { ...c, ...data } : c));
       localStorage.setItem(LOCAL_ADMIN_CATEGORIES_KEY, JSON.stringify(updated));
@@ -140,20 +105,193 @@ export const adminService = {
     }
   },
 
-  /**
-   * Deletes a category by ID.
-   * @param {string} id
-   */
   async deleteCategory(id) {
     try {
       const response = await api.delete(`/categories/${id}`);
       return response.data;
     } catch (error) {
-      console.warn('API deleteCategory failed, removing locally:', error.message);
+      console.warn('API deleteCategory fallback:', error.message);
       const existing = await this.getCategories();
       const updated = existing.filter((c) => c._id !== id);
       localStorage.setItem(LOCAL_ADMIN_CATEGORIES_KEY, JSON.stringify(updated));
       return { success: true };
+    }
+  },
+
+  // ================= PRODUCTS =================
+  async getProducts() {
+    try {
+      const response = await api.get('/products');
+      const data = response.data?.data || response.data;
+      if (Array.isArray(data) && data.length > 0) return data;
+    } catch (e) {
+      console.warn('API getProducts error, checking local store:', e.message);
+    }
+
+    const localCustom = JSON.parse(localStorage.getItem(LOCAL_ADMIN_PRODUCTS_KEY) || '[]');
+    if (localCustom.length > 0) return localCustom;
+
+    return [...MOCK_PRODUCTS];
+  },
+
+  async createProduct(data) {
+    try {
+      const response = await api.post('/products', data);
+      return response.data?.data || response.data;
+    } catch (error) {
+      console.warn('API createProduct fallback:', error.message);
+      const newProd = {
+        _id: 'prod-' + Math.random().toString(36).substring(2, 9),
+        name: data.name,
+        description: data.description,
+        price: Number(data.price),
+        image: data.image,
+        category: data.categoryObj || { _id: data.category, name: 'General' },
+        stock: Number(data.stock),
+        createdAt: new Date().toISOString(),
+      };
+      const existing = await this.getProducts();
+      const updated = [newProd, ...existing];
+      localStorage.setItem(LOCAL_ADMIN_PRODUCTS_KEY, JSON.stringify(updated));
+      return newProd;
+    }
+  },
+
+  async updateProduct(id, data) {
+    try {
+      const response = await api.put(`/products/${id}`, data);
+      return response.data?.data || response.data;
+    } catch (error) {
+      console.warn('API updateProduct fallback:', error.message);
+      const existing = await this.getProducts();
+      const updated = existing.map((p) =>
+        p._id === id
+          ? {
+              ...p,
+              ...data,
+              price: Number(data.price ?? p.price),
+              stock: Number(data.stock ?? p.stock),
+              category: data.categoryObj || p.category,
+            }
+          : p
+      );
+      localStorage.setItem(LOCAL_ADMIN_PRODUCTS_KEY, JSON.stringify(updated));
+      return { _id: id, ...data };
+    }
+  },
+
+  async deleteProduct(id) {
+    try {
+      const response = await api.delete(`/products/${id}`);
+      return response.data;
+    } catch (error) {
+      console.warn('API deleteProduct fallback:', error.message);
+      const existing = await this.getProducts();
+      const updated = existing.filter((p) => p._id !== id);
+      localStorage.setItem(LOCAL_ADMIN_PRODUCTS_KEY, JSON.stringify(updated));
+      return { success: true };
+    }
+  },
+
+  // ================= ORDERS =================
+  getAllOrdersLocal() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LOCAL_ORDERS_KEY) || '[]');
+      if (saved.length > 0) return saved;
+    } catch (e) {
+      console.error(e);
+    }
+    return [
+      {
+        _id: 'ord-demo-1',
+        shippingAddress: {
+          name: 'Vaishnavi More',
+          phone: '9876543210',
+          address: '402 Sunset Blvd',
+          city: 'Mumbai',
+          pincode: '400001',
+        },
+        totalAmount: 4999,
+        status: 'Delivered',
+        paymentMethod: 'COD',
+        createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        products: [
+          {
+            quantity: 1,
+            price: 4999,
+            name: 'Wireless Noise-Cancelling Headphones',
+            image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200',
+          },
+        ],
+      },
+      {
+        _id: 'ord-demo-2',
+        shippingAddress: {
+          name: 'Sayali Deore',
+          phone: '9822012345',
+          address: '12 Green Park',
+          city: 'Pune',
+          pincode: '411001',
+        },
+        totalAmount: 6499,
+        status: 'Shipped',
+        paymentMethod: 'COD',
+        createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+        products: [
+          {
+            quantity: 1,
+            price: 6499,
+            name: 'Mechanical RGB Gaming Keyboard',
+            image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=200',
+          },
+        ],
+      },
+      {
+        _id: 'ord-demo-3',
+        shippingAddress: {
+          name: 'Shweta Dhanawade',
+          phone: '9819098765',
+          address: '88 Marine Heights',
+          city: 'Mumbai',
+          pincode: '400020',
+        },
+        totalAmount: 2999,
+        status: 'Pending',
+        paymentMethod: 'COD',
+        createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+        products: [
+          {
+            quantity: 1,
+            price: 2999,
+            name: 'Classic Vintage Denim Jacket',
+            image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=200',
+          },
+        ],
+      },
+    ];
+  },
+
+  async getAllOrders() {
+    try {
+      const response = await api.get('/admin/orders');
+      const data = response.data?.data || response.data;
+      if (Array.isArray(data)) return data;
+    } catch (e) {
+      console.warn('API getAllOrders error, reading local store:', e.message);
+    }
+    return this.getAllOrdersLocal();
+  },
+
+  async updateOrderStatus(orderId, status) {
+    try {
+      const response = await api.put(`/admin/orders/${orderId}`, { status });
+      return response.data?.data || response.data;
+    } catch (e) {
+      console.warn('API updateOrderStatus error, updating local store:', e.message);
+      const orders = this.getAllOrdersLocal();
+      const updated = orders.map((o) => (o._id === orderId ? { ...o, status } : o));
+      localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(updated));
+      return { _id: orderId, status };
     }
   },
 };
