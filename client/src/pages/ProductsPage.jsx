@@ -1,65 +1,161 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Container from '../components/layout/Container';
 import Input from '../components/common/Input';
-import EmptyState from '../components/common/EmptyState';
-import { Search, Filter, ShoppingBag } from 'lucide-react';
+import ProductGrid from '../components/product/ProductGrid';
+import CategoryFilter from '../components/product/CategoryFilter';
+import productService from '../services/productService';
+import categoryService from '../services/categoryService';
+import { Search, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import Button from '../components/common/Button';
 
 const ProductsPage = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const categories = ['All', 'Electronics', 'Fashion', 'Footwear', 'Home & Kitchen'];
+  // Read initial filter from URL params if present
+  const initialCategory = searchParams.get('category') || 'All';
+  const initialSearch = searchParams.get('search') || '';
+
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [loading, setLoading] = useState(true);
+
+  const debounceTimeoutRef = useRef(null);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const cats = await categoryService.getCategories();
+        setCategories(cats);
+      } catch (err) {
+        console.error('Failed to load categories:', err);
+      }
+    };
+    loadCategories();
+  }, []);
+
+  // Sync state if URL search params change externally
+  useEffect(() => {
+    const cat = searchParams.get('category') || 'All';
+    const s = searchParams.get('search') || '';
+    setSelectedCategory(cat);
+    setSearchTerm(s);
+  }, [searchParams]);
+
+  // Fetch filtered products
+  const fetchProducts = useCallback(async (cat, search) => {
+    try {
+      setLoading(true);
+      const params = {};
+      if (cat && cat !== 'All') params.category = cat;
+      if (search && search.trim()) params.search = search.trim();
+
+      const data = await productService.getProducts(params);
+      setProducts(data);
+    } catch (err) {
+      console.error('Failed to fetch filtered products:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Debounced search and category filter update
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      // Update URL query parameters
+      const newParams = {};
+      if (selectedCategory && selectedCategory !== 'All') {
+        newParams.category = selectedCategory;
+      }
+      if (searchTerm && searchTerm.trim()) {
+        newParams.search = searchTerm.trim();
+      }
+      setSearchParams(newParams, { replace: true });
+
+      fetchProducts(selectedCategory, searchTerm);
+    }, 300);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [selectedCategory, searchTerm, fetchProducts, setSearchParams]);
+
+  const handleResetFilters = () => {
+    setSelectedCategory('All');
+    setSearchTerm('');
+    setSearchParams({}, { replace: true });
+  };
+
+  const isFiltered = selectedCategory !== 'All' || Boolean(searchTerm.trim());
 
   return (
-    <div className="py-8">
+    <div className="py-8 space-y-8">
       <Container>
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Browse Products
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Explore our curated catalog of quality items at verified prices.
-          </p>
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-6 border-b border-slate-200">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md">
+              Store Catalog
+            </span>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-2">
+              Browse Products
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              Showing {products.length} {products.length === 1 ? 'item' : 'items'} available for delivery
+            </p>
+          </div>
+
+          {/* Reset Filters CTA if filter is active */}
+          {isFiltered && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleResetFilters}
+              icon={RotateCcw}
+              className="self-start md:self-auto"
+            >
+              Reset Filters
+            </Button>
+          )}
         </div>
 
-        {/* Filter & Search Bar */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8 pb-6 border-b border-slate-200">
-          <div className="w-full md:w-96">
+        {/* Search Bar & Category Filters */}
+        <div className="space-y-4">
+          <div className="max-w-xl">
             <Input
               type="text"
-              placeholder="Search products by name or keyword..."
+              placeholder="Search products by name or keywords..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               icon={Search}
+              autoComplete="off"
             />
           </div>
 
-          {/* Category Tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedCategory === category
-                    ? 'bg-indigo-600 text-white shadow-sm font-semibold'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
+          {/* Category Filter Pills */}
+          <CategoryFilter
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onSelectCategory={(catId) => setSelectedCategory(catId)}
+          />
         </div>
 
-        {/* Catalog Container / Empty State */}
-        <EmptyState
-          icon={ShoppingBag}
-          title="Catalog Loading & Phase Setup"
-          message="Frontend routing and common components are active. Product integration will connect to backend APIs in Phase 8."
-          actionLabel="Return Home"
-          actionLink="/"
+        {/* Product Grid */}
+        <ProductGrid
+          products={products}
+          loading={loading}
+          emptyTitle="No matching products"
+          emptyMessage={`No items found matching "${searchTerm || selectedCategory}". Try adjusting your query.`}
+          onResetFilters={isFiltered ? handleResetFilters : undefined}
         />
       </Container>
     </div>
