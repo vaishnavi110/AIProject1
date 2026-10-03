@@ -5,7 +5,6 @@ import {
   FolderTree,
   Package,
   ShoppingBag,
-  ArrowLeft,
   Store,
 } from 'lucide-react';
 

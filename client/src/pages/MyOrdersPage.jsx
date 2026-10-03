@@ -12,7 +12,6 @@ import {
   ShoppingBag,
   Calendar,
   MapPin,
-  Clock,
   ArrowRight,
   Truck,
 } from 'lucide-react';

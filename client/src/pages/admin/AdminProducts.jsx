@@ -13,7 +13,6 @@ import {
   Pencil,
   Trash2,
   DollarSign,
-  Layers,
   Image as ImageIcon,
   Boxes,
 } from 'lucide-react';

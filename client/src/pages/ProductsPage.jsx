@@ -6,7 +6,7 @@ import ProductGrid from '../components/product/ProductGrid';
 import CategoryFilter from '../components/product/CategoryFilter';
 import productService from '../services/productService';
 import categoryService from '../services/categoryService';
-import { Search, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { Search, RotateCcw } from 'lucide-react';
 import Button from '../components/common/Button';
 
 const ProductsPage = () => {

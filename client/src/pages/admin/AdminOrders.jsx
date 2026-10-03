@@ -9,13 +9,8 @@ import { formatCurrency, formatDate } from '../../utils/formatters';
 import {
   ShoppingBag,
   Eye,
-  Calendar,
   MapPin,
   Phone,
-  Truck,
-  Package,
-  Layers,
-  Filter,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

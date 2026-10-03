@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 
 const Input = forwardRef(
   (
@@ -21,7 +21,8 @@ const Input = forwardRef(
     },
     ref
   ) => {
-    const inputId = id || name || Math.random().toString(36).substring(2, 9);
+    const generatedId = useId();
+    const inputId = id || name || generatedId;
 
     return (
       <div className={`w-full ${className}`}>

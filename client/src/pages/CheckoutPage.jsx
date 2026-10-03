@@ -121,7 +121,7 @@ const CheckoutPage = () => {
         },
       };
 
-      const createdOrder = await orderService.placeOrder(orderPayload);
+      await orderService.placeOrder(orderPayload);
       clearCart();
       toast.success('Order placed successfully! Cash on Delivery confirmed.');
       navigate('/my-orders', { replace: true });

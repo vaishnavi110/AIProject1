@@ -3,7 +3,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import {
   ShoppingBag,
   ShoppingCart,
-  User,
   LogOut,
   LayoutDashboard,
   Package,

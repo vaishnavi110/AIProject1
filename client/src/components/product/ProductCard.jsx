@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Check, PackageX, Sparkles } from 'lucide-react';
+import { ShoppingCart, Check, PackageX } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
 import { useCart } from '../../context/CartContext';
 import Button from '../common/Button';

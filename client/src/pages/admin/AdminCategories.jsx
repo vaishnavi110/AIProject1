@@ -11,8 +11,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Calendar,
-  Layers,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

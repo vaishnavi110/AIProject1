@@ -1,6 +1,6 @@
 import api from './api';
 import categoryService from './categoryService';
-import productService, { MOCK_PRODUCTS } from './productService';
+import { MOCK_PRODUCTS } from './productService';
 
 const LOCAL_ADMIN_CATEGORIES_KEY = 'shopease_admin_custom_categories';
 const LOCAL_ADMIN_PRODUCTS_KEY = 'shopease_admin_custom_products';
@@ -21,7 +21,7 @@ export const adminService = {
       try {
         const ordersRes = await api.get('/admin/orders');
         orders = ordersRes.data?.data || ordersRes.data || [];
-      } catch (e) {
+      } catch {
         orders = this.getAllOrdersLocal();
       }
 

@@ -73,7 +73,6 @@ const ProductDetailsPage = () => {
   const isOutOfStock = product.stock <= 0;
   const cartItem = cartItems.find((item) => item.product._id === product._id);
   const qtyInCart = cartItem ? cartItem.quantity : 0;
-  const maxAvailable = product.stock - qtyInCart;
 
   const handleIncrement = () => {
     if (quantity < product.stock) {

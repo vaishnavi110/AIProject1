@@ -81,6 +81,17 @@ export const CartProvider = ({ children }) => {
     return true;
   }, []);
 
+  // Remove from cart
+  const removeFromCart = useCallback((productId) => {
+    setCartItems((prevItems) => {
+      const itemToRemove = prevItems.find((i) => i.product._id === productId);
+      if (itemToRemove) {
+        toast.success(`Removed ${itemToRemove.product.name} from cart`);
+      }
+      return prevItems.filter((item) => item.product._id !== productId);
+    });
+  }, []);
+
   // Update specific item quantity (bounded by product.stock)
   const updateQuantity = useCallback((productId, qty) => {
     if (qty <= 0) {
@@ -101,18 +112,7 @@ export const CartProvider = ({ children }) => {
         return item;
       });
     });
-  }, []);
-
-  // Remove from cart
-  const removeFromCart = useCallback((productId) => {
-    setCartItems((prevItems) => {
-      const itemToRemove = prevItems.find((i) => i.product._id === productId);
-      if (itemToRemove) {
-        toast.success(`Removed ${itemToRemove.product.name} from cart`);
-      }
-      return prevItems.filter((item) => item.product._id !== productId);
-    });
-  }, []);
+  }, [removeFromCart]);
 
   // Clear cart
   const clearCart = useCallback(() => {
