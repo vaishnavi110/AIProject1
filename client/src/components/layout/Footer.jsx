@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { ShoppingBag, ShieldCheck, Truck, Banknote, Heart } from 'lucide-react';
 import Container from './Container';
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 const Footer = () => {
   return (
     <footer className="mt-auto border-t border-slate-200/80 bg-white/70 backdrop-blur-sm text-slate-600">
@@ -111,7 +113,7 @@ const Footer = () => {
           </div>
 
           <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-3">
-            <p>© {new Date().getFullYear()} ShopEase Demo Project. Built with MERN Stack.</p>
+            <p>© {CURRENT_YEAR} ShopEase Demo Project. Built with MERN Stack.</p>
             <p className="flex items-center gap-1">
               Developed with <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" /> for AI Project
             </p>
